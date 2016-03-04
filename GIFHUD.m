@@ -14,6 +14,8 @@
 
 @property (nonatomic, strong) UIImageView *imageView;
 
+@property (nonatomic, strong) UIView *overLayView;
+
 @property (nonatomic, assign) bool flag;
 
 @end
@@ -66,8 +68,12 @@
         [weakSelf animation];
     }];
     
+    self.overLayView = [[UIView alloc] initWithFrame:[UIScreen mainScreen].bounds];
+    self.overLayView.backgroundColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:0.3];
+    
     [UIView animateWithDuration:0.3 animations:^{
         self.alpha = 1;
+        [[UIApplication sharedApplication].keyWindow addSubview:_overLayView];
         [[UIApplication sharedApplication].keyWindow addSubview:self];
     }];
 }
@@ -92,13 +98,18 @@
 }
 
 - (void)dissmissHUD {
-    [UIView animateWithDuration:0.3 animations:^{
-        _imageView.alpha = 0;
-    } completion:^(BOOL finished) {
-        [_imageView removeFromSuperview];
-        [self removeFromSuperview];
-        [GCDTimerManager cancelAllTimer];
-    }];
+    if (_imageView) {
+        [UIView animateWithDuration:0.3 animations:^{
+            _imageView.alpha = 0;
+        } completion:^(BOOL finished) {
+            [_imageView removeFromSuperview];
+            _imageView = nil;
+            [_overLayView removeFromSuperview];
+            _overLayView = nil;
+            [self removeFromSuperview];
+            [GCDTimerManager cancelAllTimer];
+        }];
+    }
 }
 
 @end
