@@ -47,6 +47,11 @@
 
 #pragma mark - 实例方法
 - (void)showHUD {
+    
+    if (self.subviews.count != 0) {
+        return;
+    }
+    
     CGFloat width = [UIScreen mainScreen].bounds.size.width;
     CGFloat height = [UIScreen mainScreen].bounds.size.height;
     CGFloat imgWidth = 100;
