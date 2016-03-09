@@ -64,9 +64,12 @@
     self.backgroundColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:.5];
     self.layer.cornerRadius = 5.0;
     
+    
     _imageView = [[UIImageView alloc] initWithFrame:CGRectMake(10, 10, imgWidth - 20, imgWidth - 20)];
     _imageView.image = [UIImage imageNamed:@"dengdai"];
+    
     [self addSubview:_imageView];
+    
     
     __block GIFHUD *weakSelf = self;
     [GCDTimerManager scheduledDispatchTimerWithName:@"Timer" timeInterval:1 queue:dispatch_get_main_queue() repeats:YES actionOption:LastJobManagerDisabled action:^{
@@ -76,24 +79,25 @@
     self.overLayView = [[UIView alloc] initWithFrame:[UIScreen mainScreen].bounds];
     self.overLayView.backgroundColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:0.3];
     
+    
     [UIView animateWithDuration:0.3 animations:^{
-        self.alpha = 1;
-        [[UIApplication sharedApplication].keyWindow addSubview:_overLayView];
-        [[UIApplication sharedApplication].keyWindow addSubview:self];
+        weakSelf.alpha = 1;
+        [[UIApplication sharedApplication].keyWindow addSubview:weakSelf.overLayView];
+        [[UIApplication sharedApplication].keyWindow addSubview:weakSelf];
     }];
 }
 
 - (void)animation {
+    __block GIFHUD *weakSelf = self;
     if (!_flag) {
         [UIView animateWithDuration:1 animations:^{
-            _imageView.transform = CGAffineTransformMakeRotation(-M_PI / 3.0);
+            weakSelf.imageView.transform = CGAffineTransformMakeRotation(-M_PI / 3.0);
         }];
     } else {
         [UIView animateWithDuration:1 animations:^{
-            _imageView.transform = CGAffineTransformMakeRotation(M_PI / 3.0);
+            weakSelf.imageView.transform = CGAffineTransformMakeRotation(M_PI / 3.0);
         }];
     }
-    
     self.flag = !_flag;
 }
 
@@ -104,14 +108,15 @@
 
 - (void)dissmissHUD {
     if (_imageView) {
-        [UIView animateWithDuration:0.3 animations:^{
-            _imageView.alpha = 0;
+        __block GIFHUD *weakSelf = self;
+        [UIView animateWithDuration:0.5 animations:^{
+            weakSelf.imageView.alpha = 0;
         } completion:^(BOOL finished) {
-            [_imageView removeFromSuperview];
-            _imageView = nil;
-            [_overLayView removeFromSuperview];
-            _overLayView = nil;
-            [self removeFromSuperview];
+            [weakSelf.imageView removeFromSuperview];
+            weakSelf.imageView = nil;
+            [weakSelf.overLayView removeFromSuperview];
+            weakSelf.overLayView = nil;
+            [weakSelf removeFromSuperview];
             [GCDTimerManager cancelAllTimer];
         }];
     }
