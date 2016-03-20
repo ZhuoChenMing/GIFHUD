@@ -10,13 +10,21 @@
 
 @interface GCDTimerManager()
 
-@property (nonatomic, strong) NSMutableDictionary *timerContainer;
+@property (nonatomic, strong) NSMutableDictionary *timerDictionary;
 
-@property (nonatomic, strong) NSMutableDictionary *actionBlockCache;
+@property (nonatomic, assign) NSInteger timeOut;
 
 @end
 
 @implementation GCDTimerManager
+
+#pragma mark - 懒加载
+- (NSMutableDictionary *)timerDictionary {
+    if (!_timerDictionary) {
+        _timerDictionary = [[NSMutableDictionary alloc] init];
+    }
+    return _timerDictionary;
+}
 
 #pragma mark - 初始化
 + (GCDTimerManager *)sharedInstance {
@@ -35,9 +43,14 @@
                           timeInterval:(CGFloat)interval
                                  queue:(dispatch_queue_t)queue
                                repeats:(BOOL)repeats
-                          actionOption:(LastJobManager)option
                                 action:(dispatch_block_t)action {
-    [[self sharedInstance] scheduledDispatchTimerWithName:timerName timeInterval:interval queue:queue repeats:repeats actionOption:option action:action];
+    [[self sharedInstance] scheduledDispatchTimerWithName:timerName timeInterval:interval queue:queue repeats:repeats action:action];
+}
+
++ (void)timerWithName:(NSString *)timerName
+              timeOut:(CGFloat)timeOut
+               action:(void(^)(NSInteger timeLeft))action {
+    [[self sharedInstance] timerWithName:timerName timeOut:timeOut action:action];
 }
 
 + (void)cancelTimerWithName:(NSString *)timerName {
@@ -53,21 +66,20 @@
                           timeInterval:(CGFloat)interval
                                  queue:(dispatch_queue_t)queue
                                repeats:(BOOL)repeats
-                          actionOption:(LastJobManager)option
                                 action:(dispatch_block_t)action {
-    if (nil == timerName) {
+    if (timerName == nil) {
         return;
     }
-
-    if (nil == queue) {
+    
+    if (queue == nil) {
         queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     }
-
-    dispatch_source_t timer = [self.timerContainer objectForKey:timerName];
+    
+    dispatch_source_t timer = [self.timerDictionary objectForKey:timerName];
     if (!timer) {
         timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
         dispatch_resume(timer);
-        [self.timerContainer setObject:timer forKey:timerName];
+        [self.timerDictionary setObject:timer forKey:timerName];
     }
     
     /* timer精度为0.1秒 */
@@ -75,98 +87,67 @@
     
     __weak typeof(self) weakSelf = self;
     
-    switch (option) {
-            
-        case LastJobManagerDisabled:
-        {
-            /* 移除之前的action */
-            [weakSelf removeActionCacheForTimer:timerName];
-            
-            dispatch_source_set_event_handler(timer, ^{
-                action();
-                
-                if (!repeats) {
-                    [weakSelf cancelTimerWithName:timerName];
-                }
-            });
+    //[weakSelf removeActionBlockForTimerName:timerName];
+    dispatch_source_set_event_handler(timer, ^{
+        action();
+        if (!repeats) {
+            [weakSelf cancelTimerWithName:timerName];
         }
-            break;
-            
-        case LastJobManagerJoinin:
-        {
-            /* cache本次的action */
-            [self cacheAction:action forTimer:timerName];
-            
-            dispatch_source_set_event_handler(timer, ^{
-                NSMutableArray *actionArray = [self.actionBlockCache objectForKey:timerName];
-                [actionArray enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-                    dispatch_block_t actionBlock = obj;
-                    actionBlock();
-                }];
-                [weakSelf removeActionCacheForTimer:timerName];
-                
-                if (!repeats) {
-                    [weakSelf cancelTimerWithName:timerName];
-                }
-            });
-        }
-            break;
+    });
+}
+
+- (void)timerWithName:(NSString *)timerName
+              timeOut:(CGFloat)timeOut
+               action:(void(^)(NSInteger timeLeft))action {
+    if (timerName == nil) {
+        return;
     }
+    
+    if (_timeOut <= 0) {
+       self.timeOut = timeOut;
+    }
+    
+    dispatch_source_t timer = [self.timerDictionary objectForKey:timerName];
+    if (!timer) {
+        timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+        dispatch_resume(timer);
+        [self.timerDictionary setObject:timer forKey:timerName];
+    }
+    
+    __block GCDTimerManager *weakSelf = self;
+    dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);
+    dispatch_source_set_event_handler(timer, ^{
+        if (weakSelf.timeOut == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                action(0);
+            });
+            [weakSelf cancelTimerWithName:timerName];
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                action(weakSelf.timeOut + 1);
+            });
+        }
+        weakSelf.timeOut--;
+    });
 }
 
 - (void)cancelTimerWithName:(NSString *)timerName {
-    dispatch_source_t timer = [self.timerContainer objectForKey:timerName];
+    dispatch_source_t timer = [self.timerDictionary objectForKey:timerName];
     
     if (!timer) {
         return;
     }
     
-    [self.timerContainer removeObjectForKey:timerName];
+    [self.timerDictionary removeObjectForKey:timerName];
     dispatch_source_cancel(timer);
-    
-    [self.actionBlockCache removeObjectForKey:timerName];
 }
 
 - (void)cancelAllTimer {
     // Fast Enumeration
-    [self.timerContainer enumerateKeysAndObjectsUsingBlock:^(NSString *timerName, dispatch_source_t timer, BOOL *stop) {
-        [self.timerContainer removeObjectForKey:timerName];
+    [self.timerDictionary enumerateKeysAndObjectsUsingBlock:^(NSString *timerName, dispatch_source_t timer, BOOL *stop) {
+        [self.timerDictionary removeObjectForKey:timerName];
         dispatch_source_cancel(timer);
     }];
-}
-
-#pragma mark - Property
-- (NSMutableDictionary *)timerContainer {
-    if (!_timerContainer) {
-        _timerContainer = [[NSMutableDictionary alloc] init];
-    }
-    return _timerContainer;
-}
-
-- (NSMutableDictionary *)actionBlockCache {
-    if (!_actionBlockCache) {
-        _actionBlockCache = [[NSMutableDictionary alloc] init];
-    }
-    return _actionBlockCache;
-}
-
-#pragma mark - Private Method
-- (void)cacheAction:(dispatch_block_t)action forTimer:(NSString *)timerName {
-    id actionArray = [self.actionBlockCache objectForKey:timerName];
-    
-    if (actionArray && [actionArray isKindOfClass:[NSMutableArray class]]) {
-        [(NSMutableArray *)actionArray addObject:action];
-    } else {
-        NSMutableArray *array = [NSMutableArray arrayWithObject:action];
-        [self.actionBlockCache setObject:array forKey:timerName];
-    }
-}
-
-- (void)removeActionCacheForTimer:(NSString *)timerName {
-    if (![self.actionBlockCache objectForKey:timerName]) {
-         return;
-    }
-    [self.actionBlockCache removeObjectForKey:timerName];
 }
 
 @end

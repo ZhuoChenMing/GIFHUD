@@ -72,7 +72,7 @@
     
     
     __block GIFHUD *weakSelf = self;
-    [GCDTimerManager scheduledDispatchTimerWithName:@"Timer" timeInterval:1 queue:dispatch_get_main_queue() repeats:YES actionOption:LastJobManagerDisabled action:^{
+    [GCDTimerManager scheduledDispatchTimerWithName:@"Timer" timeInterval:1 queue:dispatch_get_main_queue() repeats:YES action:^{
         [weakSelf animation];
     }];
     
