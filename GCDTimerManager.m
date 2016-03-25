@@ -118,12 +118,12 @@
     dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC, 0.1 * NSEC_PER_SEC);
     dispatch_source_set_event_handler(timer, ^{
         if (weakSelf.timeOut == 0) {
-            dispatch_async(dispatch_get_main_queue(), ^{
+            dispatch_sync(dispatch_get_main_queue(), ^{
                 action(0);
             });
             [weakSelf cancelTimerWithName:timerName];
         } else {
-            dispatch_async(dispatch_get_main_queue(), ^{
+            dispatch_sync(dispatch_get_main_queue(), ^{
                 action(weakSelf.timeOut + 1);
             });
         }
