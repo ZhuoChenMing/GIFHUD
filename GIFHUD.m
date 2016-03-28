@@ -81,21 +81,20 @@
     
     
     [UIView animateWithDuration:0.3 animations:^{
-        weakSelf.alpha = 1;
-        [[UIApplication sharedApplication].keyWindow addSubview:weakSelf.overLayView];
-        [[UIApplication sharedApplication].keyWindow addSubview:weakSelf];
+        self.alpha = 1;
+        [[UIApplication sharedApplication].keyWindow addSubview:self.overLayView];
+        [[UIApplication sharedApplication].keyWindow addSubview:self];
     }];
 }
 
 - (void)animation {
-    __block GIFHUD *weakSelf = self;
     if (!_flag) {
         [UIView animateWithDuration:1 animations:^{
-            weakSelf.imageView.transform = CGAffineTransformMakeRotation(-M_PI / 3.0);
+            self.imageView.transform = CGAffineTransformMakeRotation(-M_PI / 3.0);
         }];
     } else {
         [UIView animateWithDuration:1 animations:^{
-            weakSelf.imageView.transform = CGAffineTransformMakeRotation(M_PI / 3.0);
+            self.imageView.transform = CGAffineTransformMakeRotation(M_PI / 3.0);
         }];
     }
     self.flag = !_flag;
@@ -108,15 +107,14 @@
 
 - (void)dissmissHUD {
     if (_imageView) {
-        __block GIFHUD *weakSelf = self;
         [UIView animateWithDuration:0.5 animations:^{
-            weakSelf.imageView.alpha = 0;
+            self.imageView.alpha = 0;
         } completion:^(BOOL finished) {
-            [weakSelf.imageView removeFromSuperview];
-            weakSelf.imageView = nil;
-            [weakSelf.overLayView removeFromSuperview];
-            weakSelf.overLayView = nil;
-            [weakSelf removeFromSuperview];
+            [self.imageView removeFromSuperview];
+            self.imageView = nil;
+            [self.overLayView removeFromSuperview];
+            self.overLayView = nil;
+            [self removeFromSuperview];
             [GCDTimerManager cancelAllTimer];
         }];
     }
