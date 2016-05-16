@@ -89,7 +89,13 @@
     
     //[weakSelf removeActionBlockForTimerName:timerName];
     dispatch_source_set_event_handler(timer, ^{
-        action();
+        if ([[NSThread currentThread] isMainThread]) {
+            action();
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                action();
+            });
+        }
         if (!repeats) {
             [weakSelf cancelTimerWithName:timerName];
         }
